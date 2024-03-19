@@ -234,7 +234,7 @@ class GizaModel:
 
                 body = response.json()
                 serialized_output = body["result"]
-                request_id = body["request_id"]
+                request_id =  body["request_id"]
 
                 if self.framework == Framework.CAIRO:
                     logging.info("Serialized: %s", serialized_output)
