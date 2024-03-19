@@ -18,10 +18,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from typing import Optional
 
-# todo: load from ./home
 load_dotenv()
 
-# todo: extend to have request_id, endpoint_id: giza models (model_id and version_id), and version_id; remove proof_path from this and dependencies
 class ProofType(BaseModel):
     address: Address # Who is the signer?
     model_id: int # The model being used for inference
@@ -174,7 +172,19 @@ class GizaAgent(GizaModel):
         calldata = contract.encodeABI(function_name, args=parameters)
         return calldata
             
-    def sign_proof(self, account: Account, proof: bytes):
+    def sign_proof(self, account: Account, proof: ProofMessage):
+        """
+        Signs a ProofMessage attesting to the on-chain action result
+        
+        Args:
+            account (Account): The account object used to sign the proof
+            proof (ProofMessage): The proof message to sign
+        Returns:
+            sig: The signature of the proof
+            proofMessage: The proof message that was signed
+            signable_message: The full message that was signed (with some EIP-191 headers and versioning)
+            
+        """
         address = account.address
         
         proofType = ProofType(address=address, model_id=self.model_id, version_id=self.version_id, endpoint_id=self.endpoint_id)
@@ -189,12 +199,14 @@ class GizaAgent(GizaModel):
             body = proofMessage
         signable_message = SignableMessage(version=version, header=header, body=body)
         sig = account.sign_message(signable_message)
-        return (sig, False, proofMessage, signable_message)
+        return (sig, proofMessage, signable_message)
         
     async def verify(self, proof_path):
         """
         Verify proof locally. Must be run *after* infer() and _get_model_data() have been run.
         
+        Args:
+            proof_path (str): The path to the proof file
         Returns:
             bool: True if proof is valid
         """
@@ -217,7 +229,6 @@ class GizaAgent(GizaModel):
 
             Args:
                 account (Account): The account object used to sign the transaction.
-                abi_path (str): The path to the ABI file for the contract.
                 function_name (str): The name of the contract function to call.
                 params: The parameters to pass to the contract function.
                 value: The value (in Wei) to send with the transaction (optional).
