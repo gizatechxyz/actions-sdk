@@ -153,9 +153,6 @@ pk.txt
 # examples/on-chain-mnist/contracts/cache/
 # examples/on-chain-mnist/contracts/out/
 
-# Poetry lock file
-poetry.lock
-
 # Cairo example files
 examples/on-chain_mnist/cairo/
 

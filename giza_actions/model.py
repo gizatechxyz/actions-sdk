@@ -1,14 +1,15 @@
-import json
 import logging
 from pathlib import Path
 from typing import Dict, Optional
 
 import numpy as np
-import onnxruntime as ort
 import onnx
+import onnxruntime as ort
 import requests
 from giza import API_HOST
 from giza.client import ApiClient, ModelsClient, VersionsClient
+from giza.schemas.models import Model
+from giza.schemas.versions import Version
 from giza.utils.enums import Framework, VersionStatus
 from osiris.app import (
     create_tensor_from_array,
@@ -53,15 +54,13 @@ class GizaModel:
         output_path: Optional[str] = None,
     ):
         if model_path is None and id is None and version is None:
-            raise ValueError(
-                "Either model_path or id and version must be provided.")
+            raise ValueError("Either model_path or id and version must be provided.")
 
         if model_path is None and (id is None or version is None):
             raise ValueError("Both id and version must be provided.")
 
         if model_path and (id or version):
-            raise ValueError(
-                "Either model_path or id and version must be provided.")
+            raise ValueError("Either model_path or id and version must be provided.")
 
         if model_path and id and version:
             raise ValueError(
@@ -81,28 +80,25 @@ class GizaModel:
             self.version = self._get_version(version)
             self.session = self._set_session()
             self.framework = self.version.framework
-            self.uri = self._retrieve_uri(version)
+            self.uri = self._retrieve_uri()
             if output_path:
                 self._download_model(output_path)
 
-    def _retrieve_uri(self, version_id: int):
+    def _retrieve_uri(self):
         """
         Retrieves the URI for making prediction requests to a deployed model.
-
-        Args:
-            version_id (int): The version number of the model.
 
         Returns:
             The URI for making prediction requests to the deployed model.
         """
         # Different URI per framework
-        uri = get_endpoint_uri(model_id, version_id)
+        uri = get_endpoint_uri(self.model.id, self.version.version)
         if self.framework == Framework.CAIRO:
             return f"{uri}/cairo_run"
         else:
             return f"{uri}/predict"
 
-    def _get_model(self, model_id: int):
+    def _get_model(self, model_id: int) -> Model:
         """
         Retrieves the model specified by model_id.
 
@@ -114,7 +110,7 @@ class GizaModel:
         """
         return self.model_client.get(model_id)
 
-    def _get_version(self, version_id: int):
+    def _get_version(self, version_id: int) -> Version:
         """
         Retrieves the version of the model specified by model id and version id.
 
@@ -141,7 +137,8 @@ class GizaModel:
 
         try:
             onnx_model = self.version_client.download_original(
-                self.model.id, self.version.version)
+                self.model.id, self.version.version
+            )
 
             return ort.InferenceSession(onnx_model)
 
@@ -166,7 +163,8 @@ class GizaModel:
             )
 
         onnx_model = self.version_client.download_original(
-            self.model.id, self.version.version)
+            self.model.id, self.version.version
+        )
 
         print("ONNX model is ready, downloading! ✅")
 
@@ -235,12 +233,7 @@ class GizaModel:
                     raise e
 
                 body = response.json()
-                print(body)
-                serialized_output = (
-                    json.dumps(body["result"])
-                    if self.framework == Framework.CAIRO
-                    else body["result"]
-                )
+                serialized_output = body["result"]
                 request_id = body["request_id"]
 
                 if self.framework == Framework.CAIRO:
@@ -251,8 +244,7 @@ class GizaModel:
                     else:
                         output_dtype = custom_output_dtype
 
-                    preds = self._parse_cairo_response(
-                        serialized_output, output_dtype)
+                    preds = self._parse_cairo_response(serialized_output, output_dtype)
                 elif self.framework == Framework.EZKL:
                     preds = np.array(serialized_output[0])
                 return (preds, request_id)

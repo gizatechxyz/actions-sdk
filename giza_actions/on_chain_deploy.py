@@ -1,7 +1,10 @@
-from giza_actions.model import GizaModel
 from typing import Optional
+
 import requests
 from ape import Contract
+
+from giza_actions.model import GizaModel
+
 
 class OCDeployer:
     """
@@ -16,10 +19,10 @@ class OCDeployer:
         process_inference: overriden by user to specify calldata for a given smart contract function
         deploy: verifies the proof, then calls the smart contract with calldata from inference
     """
-    
+
     def __init__(self, model: GizaModel):
         """Initialize deployer.
-        
+
         Args:
             model (GizaModel): GizaModel instance
         """
@@ -41,15 +44,14 @@ class OCDeployer:
         # TODO: Extract the request id from this call as well so that we can obtain the proof
         self.inference = self.model.predict(input_file, input_feed, verifiable=True)
         print("Inference saved! ✅ Result: ", self.inference)
-        
-        
+
     # TODO: Make this function async using Asyncer
     def _get_model_data(self):
         """Get proof data from GCP."""
         proof_metadata_url = f"https://api-dev.gizatech.xyz/api/v1/models/{self.model.id}/versions/{self.model.version}/deployments/{self.model.orion_runner_service_url}/proofs/{self.request_id}"
 
         response = requests.get(proof_metadata_url)
-        
+
         # TODO: Log this request and response
 
         if response.status_code == 200:
@@ -61,24 +63,23 @@ class OCDeployer:
     def process_inference(self):
         """
         Process inference data into contract calldata.
-        
+
         Raises:
-            Exception: If inference not run yet. 
+            Exception: If inference not run yet.
         """
         if self.inference is None:
             raise Exception("Please run infer() before calling process_inference()")
-            
+
         # Default just sends inference result to contract
         return self.inference
 
     def deploy(self, sc_address, calldata, proof):
         """
         Deploy model: Verify proof and execute contract function.
-        
+
         Returns:
             Transaction hash
-        """        
-        contract = Contract(sc_address)
+        """
+        _ = Contract(sc_address)
         # TODO: get model data
         # TODO: Validate proof locally and execute contract
-        
